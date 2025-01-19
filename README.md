@@ -23,9 +23,3 @@ NatMappingManager is a PowerShell-based GUI tool for managing NAT (Network Addre
   - Windows 10 (Pro, Enterprise, or Education).
 
 ---
-
-## Installation
-
-1. Clone this repository or download the script directly:
-   ```bash
-   git clone [https://github.com/2KU77B0N3S/NatMappingManager.git]
