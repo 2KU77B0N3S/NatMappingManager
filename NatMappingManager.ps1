@@ -1,6 +1,22 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Win32 {
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    public static extern IntPtr GetConsoleWindow();
+}
+"@
+
+# Minimize the PowerShell console
+$consolePtr = [Win32]::GetConsoleWindow()
+[Win32]::ShowWindow($consolePtr, 0)  # 0 = Hide the window
+
 # Create the form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "NAT Static Mapping Manager"
@@ -40,13 +56,13 @@ function Show-InputDialog {
 
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = $title
-    $dialog.Size = New-Object System.Drawing.Size(300, 300)
+    $dialog.Size = New-Object System.Drawing.Size(300, 350)
     $dialog.StartPosition = "CenterParent"
 
     $controls = @{}
     $y = 10
 
-    foreach ($field in @("ExternalIPAddress", "ExternalPort", "InternalIPAddress", "InternalPort", "Protocol")) {
+    foreach ($field in @("NatName", "ExternalIPAddress", "ExternalPort", "InternalIPAddress", "InternalPort", "Protocol")) {
         $label = New-Object System.Windows.Forms.Label
         $label.Text = $field
         $label.Location = New-Object System.Drawing.Point(10, $y)
@@ -80,6 +96,7 @@ function Show-InputDialog {
 
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         return @(
+            $controls["NatName"].Text,
             $controls["ExternalIPAddress"].Text,
             $controls["ExternalPort"].Text,
             $controls["InternalIPAddress"].Text,
@@ -124,9 +141,9 @@ function Load-NatMappings {
 $addButton.Add_Click({
     $result = Show-InputDialog -title "Add New NAT Mapping"
     if ($result) {
-        $externalIP, $externalPort, $internalIP, $internalPort, $protocol = $result
+        $natName, $externalIP, $externalPort, $internalIP, $internalPort, $protocol = $result
         try {
-            Add-NetNatStaticMapping -ExternalIPAddress $externalIP -ExternalPort $externalPort -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
+            Add-NetNatStaticMapping -NatName $natName -ExternalIPAddress $externalIP -ExternalPort $externalPort -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
             [System.Windows.Forms.MessageBox]::Show("New mapping added successfully.", "Info")
             Load-NatMappings
         } catch {
@@ -135,24 +152,29 @@ $addButton.Add_Click({
     }
 })
 
-# Edit Mapping
 $editButton.Add_Click({
     $selectedRow = $dataGridView.CurrentRow
     if ($selectedRow) {
         $defaults = @{
+            NatName           = $selectedRow.Cells["NatName"].Value
             ExternalIPAddress = $selectedRow.Cells["ExternalIPAddress"].Value
             ExternalPort      = $selectedRow.Cells["ExternalPort"].Value
             InternalIPAddress = $selectedRow.Cells["InternalIPAddress"].Value
             InternalPort      = $selectedRow.Cells["InternalPort"].Value
             Protocol          = $selectedRow.Cells["Protocol"].Value
         }
+
         $result = Show-InputDialog -title "Edit NAT Mapping" -defaults $defaults
         if ($result) {
-            $externalIP, $externalPort, $internalIP, $internalPort, $protocol = $result
+            $natName, $externalIP, $externalPort, $internalIP, $internalPort, $protocol = $result
             $id = $selectedRow.Cells["ID"].Value
             try {
-                Remove-NetNatStaticMapping -StaticMappingID $id -ErrorAction Stop
-                Add-NetNatStaticMapping -ExternalIPAddress $externalIP -ExternalPort $externalPort -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
+                # Remove the old mapping with -Confirm:$false
+                Remove-NetNatStaticMapping -StaticMappingID $id -Confirm:$false -ErrorAction Stop
+
+                # Add the updated mapping
+                Add-NetNatStaticMapping -NatName $natName -ExternalIPAddress $externalIP -ExternalPort $externalPort -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
+
                 [System.Windows.Forms.MessageBox]::Show("Mapping updated successfully.", "Info")
                 Load-NatMappings
             } catch {
@@ -164,14 +186,15 @@ $editButton.Add_Click({
     }
 })
 
-# Delete Mapping
 $deleteButton.Add_Click({
     $selectedRow = $dataGridView.CurrentRow
     if ($selectedRow) {
         $id = $selectedRow.Cells["ID"].Value
         if ($id -ne $null) {
             try {
-                Remove-NetNatStaticMapping -StaticMappingID $id -ErrorAction Stop
+                # Suppress confirmation with -Confirm:$false
+                Remove-NetNatStaticMapping -StaticMappingID $id -Confirm:$false -ErrorAction Stop
+
                 [System.Windows.Forms.MessageBox]::Show("Mapping deleted successfully.", "Info")
                 Load-NatMappings
             } catch {
@@ -182,6 +205,8 @@ $deleteButton.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("No mapping selected.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
+
+
 
 # Load the initial data
 Load-NatMappings
