@@ -20,46 +20,97 @@ $consolePtr = [Win32]::GetConsoleWindow()
 # Create the form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "NAT Static Mapping Manager"
-$form.Size = New-Object System.Drawing.Size(800, 400)
+$form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+$form.MaximizeBox = $false
+$form.MinimizeBox = $false
+$form.Size = New-Object System.Drawing.Size(820, 450)
+
+# Optional: Change the form's icon to match PowerShell
+# or any other .ico path you have
+# $form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
+
+# Use a nicer font
+$form.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Regular)
+
+# Create a group box to hold the DataGridView
+$groupBox = New-Object System.Windows.Forms.GroupBox
+$groupBox.Text = "Existing NAT Mappings"
+$groupBox.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$groupBox.Location = New-Object System.Drawing.Point(10, 10)
+$groupBox.Size = New-Object System.Drawing.Size(790, 290)
+$form.Controls.Add($groupBox)
 
 # DataGridView to display NAT mappings
 $dataGridView = New-Object System.Windows.Forms.DataGridView
-$dataGridView.Size = New-Object System.Drawing.Size(770, 250)
-$dataGridView.Location = New-Object System.Drawing.Point(10, 10)
+$dataGridView.Size = New-Object System.Drawing.Size(760, 240)
+$dataGridView.Location = New-Object System.Drawing.Point(15, 25)
 $dataGridView.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
 $dataGridView.AllowUserToAddRows = $false
 $dataGridView.ReadOnly = $true
-$form.Controls.Add($dataGridView)
+$dataGridView.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
+$dataGridView.MultiSelect = $false
+
+# DataGridView styling
+$dataGridView.EnableHeadersVisualStyles = $false
+$dataGridView.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(225, 225, 225)
+$dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::Black
+$dataGridView.ColumnHeadersDefaultCellStyle.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+
+$dataGridView.AlternatingRowsDefaultCellStyle.BackColor = [System.Drawing.Color]::WhiteSmoke
+$dataGridView.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::LightSteelBlue
+$dataGridView.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::Black
+
+$groupBox.Controls.Add($dataGridView)
 
 # Buttons
+$buttonPanel = New-Object System.Windows.Forms.Panel
+$buttonPanel.Location = New-Object System.Drawing.Point(10, 310)
+$buttonPanel.Size = New-Object System.Drawing.Size(790, 50)
+$form.Controls.Add($buttonPanel)
+
 $addButton = New-Object System.Windows.Forms.Button
 $addButton.Text = "Add"
-$addButton.Location = New-Object System.Drawing.Point(10, 270)
-$form.Controls.Add($addButton)
+$addButton.Size = New-Object System.Drawing.Size(75, 30)
+$addButton.Location = New-Object System.Drawing.Point(0, 10)
 
 $editButton = New-Object System.Windows.Forms.Button
 $editButton.Text = "Edit"
-$editButton.Location = New-Object System.Drawing.Point(90, 270)
-$form.Controls.Add($editButton)
+$editButton.Size = New-Object System.Drawing.Size(75, 30)
+$editButton.Location = New-Object System.Drawing.Point(90, 10)
 
 $deleteButton = New-Object System.Windows.Forms.Button
 $deleteButton.Text = "Delete"
-$deleteButton.Location = New-Object System.Drawing.Point(170, 270)
-$form.Controls.Add($deleteButton)
+$deleteButton.Size = New-Object System.Drawing.Size(75, 30)
+$deleteButton.Location = New-Object System.Drawing.Point(180, 10)
+
+$buttonPanel.Controls.Add($addButton)
+$buttonPanel.Controls.Add($editButton)
+$buttonPanel.Controls.Add($deleteButton)
+
+# ToolTips for buttons
+$toolTip = New-Object System.Windows.Forms.ToolTip
+$toolTip.SetToolTip($addButton, "Add a new NAT mapping")
+$toolTip.SetToolTip($editButton, "Edit the selected NAT mapping")
+$toolTip.SetToolTip($deleteButton, "Delete the selected NAT mapping")
 
 # Custom input dialog function
 function Show-InputDialog {
     param (
         [string]$title,
-        [hashtable]$defaults = @{}
+        [hashtable]$defaults = @{ }
     )
 
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = $title
     $dialog.Size = New-Object System.Drawing.Size(300, 350)
     $dialog.StartPosition = "CenterParent"
+    $dialog.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $dialog.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 
-    $controls = @{}
+    $controls = @{ }
     $y = 10
 
     foreach ($field in @("NatName", "ExternalIPAddress", "ExternalPort", "InternalIPAddress", "InternalPort", "Protocol")) {
@@ -147,66 +198,74 @@ $addButton.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("New mapping added successfully.", "Info")
             Load-NatMappings
         } catch {
-            [System.Windows.Forms.MessageBox]::Show("Error adding mapping: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            [System.Windows.Forms.MessageBox]::Show("Error adding mapping: $($_.Exception.Message)", "Error",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     }
 })
 
+# Edit Mapping
 $editButton.Add_Click({
     $selectedRow = $dataGridView.CurrentRow
     if ($selectedRow) {
-        $defaults = @{
-            NatName           = $selectedRow.Cells["NatName"].Value
-            ExternalIPAddress = $selectedRow.Cells["ExternalIPAddress"].Value
-            ExternalPort      = $selectedRow.Cells["ExternalPort"].Value
-            InternalIPAddress = $selectedRow.Cells["InternalIPAddress"].Value
-            InternalPort      = $selectedRow.Cells["InternalPort"].Value
-            Protocol          = $selectedRow.Cells["Protocol"].Value
-        }
+        $defaults = @{}
+        $defaults["NatName"]           = $selectedRow.Cells["NatName"].Value
+        $defaults["ExternalIPAddress"] = $selectedRow.Cells["ExternalIPAddress"].Value
+        $defaults["ExternalPort"]      = $selectedRow.Cells["ExternalPort"].Value
+        $defaults["InternalIPAddress"] = $selectedRow.Cells["InternalIPAddress"].Value
+        $defaults["InternalPort"]      = $selectedRow.Cells["InternalPort"].Value
+        $defaults["Protocol"]          = $selectedRow.Cells["Protocol"].Value
 
         $result = Show-InputDialog -title "Edit NAT Mapping" -defaults $defaults
         if ($result) {
             $natName, $externalIP, $externalPort, $internalIP, $internalPort, $protocol = $result
             $id = $selectedRow.Cells["ID"].Value
             try {
-                # Remove the old mapping with -Confirm:$false
                 Remove-NetNatStaticMapping -StaticMappingID $id -Confirm:$false -ErrorAction Stop
-
-                # Add the updated mapping
-                Add-NetNatStaticMapping -NatName $natName -ExternalIPAddress $externalIP -ExternalPort $externalPort -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
+                Add-NetNatStaticMapping -NatName $natName -ExternalIPAddress $externalIP -ExternalPort $externalPort `
+                    -InternalIPAddress $internalIP -InternalPort $internalPort -Protocol $protocol -ErrorAction Stop
 
                 [System.Windows.Forms.MessageBox]::Show("Mapping updated successfully.", "Info")
                 Load-NatMappings
             } catch {
-                [System.Windows.Forms.MessageBox]::Show("Error editing mapping: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                [System.Windows.Forms.MessageBox]::Show("Error editing mapping: $($_.Exception.Message)", "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         }
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("No mapping selected.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+    else {
+        [System.Windows.Forms.MessageBox]::Show("No mapping selected.", "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
 
+# Delete Mapping
 $deleteButton.Add_Click({
     $selectedRow = $dataGridView.CurrentRow
     if ($selectedRow) {
         $id = $selectedRow.Cells["ID"].Value
         if ($id -ne $null) {
             try {
-                # Suppress confirmation with -Confirm:$false
                 Remove-NetNatStaticMapping -StaticMappingID $id -Confirm:$false -ErrorAction Stop
-
                 [System.Windows.Forms.MessageBox]::Show("Mapping deleted successfully.", "Info")
                 Load-NatMappings
-            } catch {
-                [System.Windows.Forms.MessageBox]::Show("Error deleting mapping: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Error deleting mapping: $($_.Exception.Message)", "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         }
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("No mapping selected.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+    else {
+        [System.Windows.Forms.MessageBox]::Show("No mapping selected.", "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
-
-
 
 # Load the initial data
 Load-NatMappings
