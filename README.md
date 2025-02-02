@@ -1,6 +1,6 @@
 # NatMappingManager
 
-NatMappingManager is a PowerShell-based GUI tool for managing NAT (Network Address Translation) static mappings. The tool provides a user-friendly interface to view, add, edit, and delete NAT mappings on Windows systems.
+NatMappingManager is a PowerShell-based GUI tool for managing both NAT (Network Address Translation) static mappings and NAT networks on Windows systems. The tool provides an easy-to-use interface that allows you to view, add, edit, and delete NAT mappings as well as manage NAT networks with just a few clicks.
 
 ![Screenshot](Bild_2025-02-02_231236119.png)
 ---
@@ -11,6 +11,7 @@ NatMappingManager is a PowerShell-based GUI tool for managing NAT (Network Addre
 - Add new NAT static mappings with required parameters.
 - Edit existing NAT mappings.
 - Delete NAT mappings with a single click.
+- Manage NAT networks (view, add, edit, delete)
 - GUI-based interface using Windows Forms.
 
 ---
