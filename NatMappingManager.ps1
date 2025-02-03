@@ -2,6 +2,11 @@
 # Full Integrated NAT Manager GUI (Updated)
 # =========================
 
+# Following prerequisites are required
+#Requires -Version 5.1
+#Requires -Modules NetNat
+#Requires -RunAsAdministrator
+
 # Load necessary assemblies
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
